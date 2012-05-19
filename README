@@ -1,0 +1,7 @@
+A blessed fork of https://bitbucket.org/akoha/django-lean with a new maintainer.
+
+Contact @jdunck on twitter if you need support, or the django-lean Google Group.
+
+Existing, known issues, are here: https://bitbucket.org/akoha/django-lean/issues?status=new&status=open but please report new issues here on Github.
+
+Rehosted docs forthcoming soon, but see https://bitbucket.org/akoha/django-lean/wiki/Home for existing docs.
