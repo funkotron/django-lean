@@ -46,7 +46,7 @@ Experiment reports are prepared using the {{{update_experiment_reports}}} manage
 
 === Experiment Management ===
 
-Experiments may be defined, enabled, disabled, or promoted via the {{{django-admin}}} interface. You may also define experiments in your source tree and have them automatically loaded into the database (see [[http://bitbucket.org/akoha/django-lean/src/tip/experiments/loader.py|{{{experiments.loader.ExperimentLoader}}}]]).
+Experiments may be defined, enabled, disabled, or promoted via the {{{django-admin}}} interface. You may also define experiments in your source tree and have them automatically loaded into the database (see [[https://github.com/votizen/django-lean/blob/master/django_lean/experiments/loader.py|{{{experiments.loader.ExperimentLoader}}}]]).
 
 Each experiment has a state, which affects whether visitors are enrolled in the experiment, and whether they see the control or test case of the experiment.
 
