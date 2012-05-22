@@ -8,7 +8,6 @@ pip-log.txt
 .sass-cache
 .idea
 .ropeproject/
-experiments/
 bin/
 develop-eggs/
 *.egg-info/

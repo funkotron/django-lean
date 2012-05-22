@@ -37,6 +37,7 @@ setup(
         'Programming Language :: Python',
         'Topic :: Software Development :: Libraries :: Python Modules'
     ],
+    package_dir = {'': 'src'},
     packages=[
         'django_lean',
         'django_lean.experiments',
