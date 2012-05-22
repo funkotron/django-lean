@@ -1,4 +1,8 @@
+"""
+Backport of smarter if tag from django 1.2; has no affect if django >= 1.2
+"""
 # -*- coding: utf-8 -*-
+import django
 from django import template
 
 
@@ -215,7 +219,6 @@ class SmartIfNode(template.Node):
         return nodes
     
 
-@register.tag('if')
 def smart_if(parser, token):
     """
     A smarter {% if %} tag for django templates.
@@ -242,3 +245,6 @@ def smart_if(parser, token):
     else:
         nodelist_false = None
     return SmartIfNode(var, nodelist_true, nodelist_false)
+
+if django.VERSION < (1, 2):
+    register.tag('if', smart_if)
