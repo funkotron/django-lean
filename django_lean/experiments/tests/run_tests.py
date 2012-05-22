@@ -4,10 +4,10 @@ from django.conf import settings
 
 class SimpleEngagementCalculator(object):
     def calculate_user_engagement_score(self, user, start_date, end_date):
-	    return 0
+        return 0
 
 if __name__ == '__main__':
-	settings.configure(
+    settings.configure(
             ROOT_URLCONF=None,
             LEAN_ENGAGEMENT_CALCULATOR=(
                 'experiments.tests.run_tests.SimpleEngagementCalculator'),
@@ -27,6 +27,6 @@ if __name__ == '__main__':
                 "django.core.context_processors.media",
                 "django.core.context_processors.request")
             )
-	from django.core.management import call_command
-	call_command('syncdb', interactive=False)
-	call_command('test', 'experiments')
+    from django.core.management import call_command
+    call_command('syncdb', interactive=False)
+    call_command('test', 'experiments')
