@@ -1,3 +1,15 @@
 .hg*
 *.pyc
 *.pyo
+*.egg
+pip-log.txt
+*.komodoproject
+*.coverage
+.sass-cache
+.idea
+.ropeproject/
+experiments/
+bin/
+develop-eggs/
+*.egg-info/
+.installed.cfg

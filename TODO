@@ -1,0 +1,16 @@
+jdunck - 
+  make smartif conditional, or maybe remove support for django before it came in.
+  clearly document the distinctions between webuser, experiementuser, anonymoususer, registereduser, unverifieduser.
+
+  document the confirm_human view's purpose.
+
+  in general, make a clear distinction between a valid experiment case and a user.
+
+  fine-grained exception classes
+
+  logging
+
+  optionally dispatch to app func for confirm_human.
+
+  remove excessive __-ism and nestings
+  pep8
