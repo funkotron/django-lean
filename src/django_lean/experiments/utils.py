@@ -5,19 +5,19 @@ l = logging.getLogger(__name__)
 from django_lean.experiments.models import (AnonymousVisitor, Experiment,
                                             Participant)
 
-
-class WebUser(object):
+class Subject(object):
     """
-    Wrapper class that implements an 'ExperimentUser' object from a web
-    request.
+    A subject is a single identity which is participant in 0 or more experiments.
     """
-    def __init__(self, request):
-        self.request = request
-        self.user = request.user
-        self.session = request.session
+    def __init__(self, session):
+        """
+        Note that .session may not be a contrib.session - it is just assumed
+          to be a dict-like object which handles persisting itself.
+        """
+        self.session = session
 
     def is_anonymous(self):
-        return self.user.is_anonymous()
+        raise NotImplementedError
 
     def set_anonymous_id(self, anonymous_id):
         self.session['anonymous_id'] = anonymous_id
@@ -26,7 +26,7 @@ class WebUser(object):
         return self.session.get('anonymous_id', None)
 
     def get_registered_user(self):
-        if self.user.is_anonymous():
+        if self.is_anonymous():
             return None
         return self.user
 
@@ -84,8 +84,20 @@ class WebUser(object):
         else:
             return added_enrollments.get(experiment_name, None)
 
+class WebSubject(Subject):
+    """
+    Wrapper class that implements an 'ExperimentUser' object from a web
+    request.
+    """
+    def __init__(self, session, user):
+        super(WebSubject, self).__init__(session)
+        self.user = user
 
-class StaticUser(WebUser):
+    def is_anonymous(self):
+        return self.user.is_anonymous()
+
+
+class StaticParticipant(WebSubject):
     def __init__(self):
         from django.contrib.auth.models import AnonymousUser
         self.request = None
@@ -93,13 +105,13 @@ class StaticUser(WebUser):
         self.session = {}
 
 
-class WebUserFactory(object):
+class WebSubjectFactory(object):
     """
     Factory that creates 'ExperimentUser' objects from a web context.
     """
     def create_user(self, context):
         request = context.get('request', None)
         if request is None:
-            return StaticUser()
-        return WebUser(request)
-    
+            return StaticParticipant()
+        return WebSubject(request.session, request.user)
+

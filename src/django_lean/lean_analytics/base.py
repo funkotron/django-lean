@@ -1,5 +1,5 @@
 from django_lean.experiments.models import Participant
-from django_lean.experiments.utils import WebUser
+from django_lean.experiments.utils import WebSubject
 from django_lean.lean_analytics import IdentificationError
 
 
@@ -34,7 +34,7 @@ class BaseAnalytics(object):
 
     def event(self, name, properties, request=None):
         if request:
-            self._submit(name, properties, experiment_user=WebUser(request))
+            self._submit(name, properties, experiment_user=WebSubject(request.session, request.user))
 
     def _submit(self, name, properties, experiment_user=None):
         raise NotImplementedError()

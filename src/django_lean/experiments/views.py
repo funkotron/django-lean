@@ -12,7 +12,7 @@ from django.views.decorators.cache import never_cache
 from django_lean.experiments.models import (Experiment, GoalRecord,
                                             DailyEngagementReport)
 from django_lean.experiments.reports import get_conversion_data
-from django_lean.experiments.utils import WebUser
+from django_lean.experiments.utils import WebSubject
 
 
 experiment_states= {
@@ -34,14 +34,14 @@ TRANSPARENT_1X1_PNG = \
 
 @never_cache
 def confirm_human(request):
-    experiment_user = WebUser(request)
+    experiment_user = WebSubject(request.session, request.user)
     experiment_user.confirm_human()
     return HttpResponse(status=204)
 
 @never_cache
 def record_experiment_goal(request, goal_name):
     try:
-        GoalRecord.record(goal_name, WebUser(request))
+        GoalRecord.record(goal_name, WebSubject(request.session, request.user))
     except Exception, e:
         l.warn("unknown goal type '%s': %s" % (goal_name, e))
     

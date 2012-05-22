@@ -9,7 +9,7 @@ from django.http import HttpRequest
 from django_lean.experiments.models import (AnonymousVisitor, Experiment,
                                             GoalRecord, GoalType, Participant)
 from django_lean.experiments.tests.utils import get_session, patch, TestCase
-from django_lean.experiments.utils import StaticUser, WebUser
+from django_lean.experiments.utils import StaticUser, WebSubject
 from django_lean.lean_analytics import (get_all_analytics,
                                         get_all_analytics_names,
                                         reset_caches,
@@ -89,7 +89,7 @@ else:
                               experiment_user.session)
 
         def test_compute_id(self):
-            # With anonymous WebUser
+            # With anonymous WebSubject
             with self.web_user(AnonymousUser()) as experiment_user:
                 session = experiment_user.session
                 self.mox.ReplayAll()
@@ -97,7 +97,7 @@ else:
                                  'Session %s' % session.session_key)
                 self.mox.VerifyAll()
 
-            # With authenticated WebUser
+            # With authenticated WebSubject
             user = User.objects.create_user('user', 'user@example.com', 'user')
             with self.web_user(user) as experiment_user:
                 self.mox.ReplayAll()
@@ -111,13 +111,13 @@ else:
                               self.analytics._compute_id, experiment_user)
 
         def test_identify(self):
-            # With anonymous WebUser
+            # With anonymous WebSubject
             with self.web_user(AnonymousUser()) as experiment_user:
                 self.mox.ReplayAll()
                 self.assertTrue(self.analytics._identify(experiment_user))
                 self.mox.VerifyAll()
 
-            # With authenticated WebUser
+            # With authenticated WebSubject
             user = User.objects.create_user('user', 'user@example.com', 'user')
             with self.web_user(user) as experiment_user:
                 self.mox.ReplayAll()
@@ -177,7 +177,7 @@ else:
             request = self.mox.CreateMock(HttpRequest)
             request.user = user
             request.session = session
-            experiment_user = WebUser(request)
+            experiment_user = WebSubject(request.session, request.user)
             experiment_user.get_or_create_anonymous_visitor()
             yield experiment_user
 
@@ -229,7 +229,7 @@ else:
                               experiment_user.session)
 
         def test_compute_id(self):
-            # With anonymous WebUser
+            # With anonymous WebSubject
             with self.web_user(AnonymousUser()) as experiment_user:
                 session = experiment_user.session
                 self.mox.ReplayAll()
@@ -237,7 +237,7 @@ else:
                                  'Session %s' % session.session_key)
                 self.mox.VerifyAll()
 
-            # With authenticated WebUser
+            # With authenticated WebSubject
             user = User.objects.create_user('user', 'user@example.com', 'user')
             with self.web_user(user) as experiment_user:
                 self.mox.ReplayAll()
@@ -251,7 +251,7 @@ else:
                               self.analytics._compute_id, experiment_user)
 
         def test_identify(self):
-            # With anonymous WebUser
+            # With anonymous WebSubject
             with self.web_user(AnonymousUser()) as experiment_user:
                 self.mox.ReplayAll()
                 self.assertTrue(self.analytics._identify(experiment_user))
@@ -261,7 +261,7 @@ else:
                 )
                 self.mox.VerifyAll()
 
-            # With authenticated WebUser
+            # With authenticated WebSubject
             user = User.objects.create_user('user', 'user@example.com', 'user')
             with self.web_user(user) as experiment_user:
                 self.mox.ReplayAll()
@@ -349,6 +349,6 @@ else:
             request = self.mox.CreateMock(HttpRequest)
             request.user = user
             request.session = session
-            experiment_user = WebUser(request)
+            experiment_user = WebSubject(request.session, request.user)
             experiment_user.get_or_create_anonymous_visitor()
             yield experiment_user

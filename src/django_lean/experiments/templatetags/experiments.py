@@ -7,13 +7,13 @@ l = logging.getLogger(__name__)
 from django import template
 
 from django_lean.experiments.models import Experiment
-from django_lean.experiments.utils import WebUserFactory
+from django_lean.experiments.utils import WebSubjectFactory
 
 
 register = template.Library()
 
 class BaseExperimentNode(template.Node):
-    def __init__(self, user_factory=WebUserFactory()):
+    def __init__(self, user_factory=WebSubjectFactory()):
         self.__user_factory = user_factory
     
     def create_user(self, context):
@@ -54,7 +54,7 @@ class ExperimentNode(BaseExperimentNode):
     
 
 @register.tag('experiment')
-def experiment(parser, token, user_factory=WebUserFactory()):
+def experiment(parser, token, user_factory=WebSubjectFactory()):
     """
     Split Testing experiment tag has the following syntax :
     
@@ -108,7 +108,7 @@ class ClientSideExperimentNode(BaseExperimentNode):
     
 
 @register.tag('clientsideexperiment')
-def clientsideexperiment(parser, token, user_factory=WebUserFactory()):
+def clientsideexperiment(parser, token, user_factory=WebSubjectFactory()):
     """
     Used to declare an experiment that affects JavaScript :
     
