@@ -27,19 +27,19 @@ class GoalType(models.Model):
 
 
 class GoalRecord(models.Model):
-    """Records a discreet goal achievement."""
+    """Records a discrete goal achievement."""
     created = models.DateTimeField(auto_now_add=True, db_index=True)
     anonymous_visitor = models.ForeignKey(AnonymousVisitor)
     goal_type = models.ForeignKey(GoalType)
 
     @classmethod
-    def _record(cls, goal_name, experiment_user):
+    def _record(cls, goal_name, subject):
         """
         Records a goal achievement for the experiment user.
         If the user does not have an anonymous visitor ID, does nothing.
         If the goal name is not known, throws an Exception.
         """
-        anonymous_id = experiment_user.get_anonymous_id()
+        anonymous_id = subject.get_anonymous_id()
         if anonymous_id:
             anonymous_visitor = AnonymousVisitor.objects.get(id=anonymous_id)
             if getattr(settings, 'LEAN_AUTOCREATE_GOAL_TYPES', False):
@@ -51,66 +51,71 @@ class GoalRecord(models.Model):
                 goal_type=goal_type, anonymous_visitor=anonymous_visitor
             )
             goal_recorded.send(sender=cls, goal_record=goal_record,
-                               experiment_user=experiment_user)
+                               experiment_user=subject)
             return goal_record
+        else:
+            l.error("Attempt to record a Goal on a registered user - support for this needs to be added.")
 
     @classmethod
-    def record(cls, goal_name, experiment_user):
+    def record(cls, goal_name, subject):
         try:
-            return cls._record(goal_name, experiment_user)
+            return cls._record(goal_name, subject)
         except GoalType.DoesNotExist:
             if settings.DEBUG:
                 raise
             l.warning("Can't find the GoalType named %s" % goal_name)
+        except (SystemExit, KeyboardInterrupt):
+            raise
         except Exception, e:
             l.exception("Unexpected exception in GoalRecord.record")
 
 
 class Experiment(models.Model):
     """ Defines a split testing experiment"""
-    class __UnverifiedUser(object):
-        def __init__(self, experiment_user):
-            self.experiment_user = experiment_user
+    class PossiblyBotParticipant(object):
+        def __init__(self, subject):
+            self.subject = subject
 
         def get_enrollment(self, experiment):
-            return self.experiment_user.get_temporary_enrollment(
+            return self.subject.get_temporary_enrollment(
                 experiment.name)
 
         def set_enrollment(self, experiment, group_id):
-            self.experiment_user.store_temporary_enrollment(experiment.name,
+            self.subject.store_temporary_enrollment(experiment.name,
                                                             group_id)
+            # FIXME: experiment_user -> subject
             user_enrolled.send(sender=self.__class__,
                                experiment=experiment,
-                               experiment_user=self.experiment_user,
+                               experiment_user=self.subject,
                                group_id=group_id)
 
-    class __RegisteredUser(object):
-        def __init__(self, experiment_user):
-            self.experiment_user = experiment_user
+    class RegisteredParticipant(object):
+        def __init__(self, subject):
+            self.subject = subject
 
         def get_enrollment(self, experiment):
             participants = Participant.objects.filter(
-                user=self.experiment_user.get_registered_user(),
+                user=self.subject.get_registered_user(),
                 experiment=experiment)
             if participants.count() == 1:
                 return participants[0].group
 
         def set_enrollment(self, experiment, group_id):
             participant = Participant.objects.create(
-                user=self.experiment_user.get_registered_user(),
+                user=self.subject.get_registered_user(),
                 experiment=experiment, group=group_id
             )
             user_enrolled.send(sender=self.__class__,
                                experiment=experiment,
-                               experiment_user=self.experiment_user,
+                               experiment_user=self.subject,
                                group_id=group_id)
 
-    class __AnonymousUser(object):
-        def __init__(self, experiment_user):
-            self.experiment_user = experiment_user
+    class AnonymousParticipant(object):
+        def __init__(self, subject):
+            self.subject = subject
 
         def __get_anonymous_visitor(self):
-            anonymous_id = self.experiment_user.get_anonymous_id()
+            anonymous_id = self.subject.get_anonymous_id()
             if anonymous_id:
                 anonymous_visitors = AnonymousVisitor.objects.filter(id=anonymous_id)
                 if anonymous_visitors.count() == 1:
@@ -131,7 +136,7 @@ class Experiment(models.Model):
             if not anonymous_visitor:
                 anonymous_visitor = AnonymousVisitor()
                 anonymous_visitor.save()
-                self.experiment_user.set_anonymous_id(anonymous_visitor.id)
+                self.subject.set_anonymous_id(anonymous_visitor.id)
 
             Participant.objects.create(
                 anonymous_visitor=anonymous_visitor,
@@ -139,17 +144,19 @@ class Experiment(models.Model):
             )
             user_enrolled.send(sender=self.__class__,
                                experiment=experiment,
-                               experiment_user=self.experiment_user,
+                               experiment_user=self.subject,
                                group_id=group_id)
 
     @classmethod
-    def __create_user(cls, experiment_user):
-        if not experiment_user.is_anonymous():
-            return cls.__RegisteredUser(experiment_user)
-        if not experiment_user.is_verified_human():
-            return cls.__UnverifiedUser(experiment_user)
+    def get_participant_adaptor(cls, subject):
+        if not subject.is_anonymous():
+            return cls.RegisteredParticipant(subject)
+        if not subject.is_verified_human():
+            return cls.PossiblyBotParticipant(subject)
         else:
-            return cls.__AnonymousUser(experiment_user)
+            return cls.AnonymousParticipant(subject)
+    #backwards compatibility:
+    __create_user = get_participant_adaptor
 
     DISABLED_STATE = 0
     ENABLED_STATE = 1
@@ -160,7 +167,16 @@ class Experiment(models.Model):
         (ENABLED_STATE, 'Enabled'),
         (PROMOTED_STATE, 'Promoted'))
 
+    IDENTITY_SOURCE_COOKIE = 0
+    IDENTITY_SOURCE_URL = 1
+
+    IDENTITY_SOURCES = (
+            (IDENTITY_SOURCE_COOKIE, 'cookie'),
+            (IDENTITY_SOURCE_URL, 'url'),
+    )
+
     name = models.CharField(unique=True, max_length=128)
+    identity_source = models.IntegerField(default=IDENTITY_SOURCE_COOKIE, choices=IDENTITY_SOURCES)
     state = models.IntegerField(default=DISABLED_STATE, choices=STATES)
     start_date = models.DateField(blank=True, null=True, db_index=True)
     end_date = models.DateField(blank=True, null=True)
@@ -201,27 +217,27 @@ class Experiment(models.Model):
         return super(Experiment, self).save(*args, **kwargs)
 
     @staticmethod
-    def control(experiment_name, experiment_user):
+    def control(experiment_name, subject):
         """
         Will return True when user is part of the control group in
         the passed experiment. If the user is not enrolled in this
         experiment, and the experiment is enabled, it will enroll the user.
         """
-        return Experiment.__test_group(experiment_name, experiment_user,
+        return Experiment.__test_group(experiment_name, subject,
                                        Participant.CONTROL_GROUP)
 
     @staticmethod
-    def test(experiment_name, experiment_user):
+    def test(experiment_name, subject):
         """
         Will return True when user is part of the test group in
         the passed experiment. If the user is not enrolled in this
         experiment, and the experiment is enabled, it will enroll the user.
         """
-        return Experiment.__test_group(experiment_name, experiment_user,
+        return Experiment.__test_group(experiment_name, subject,
                                        Participant.TEST_GROUP)
 
     @classmethod
-    def __test_group(cls, experiment_name, experiment_user, queried_group):
+    def __test_group(cls, experiment_name, subject, queried_group):
         """does the real work"""
         from django_lean.experiments.loader import ExperimentLoader
         ExperimentLoader.load_all_experiments()
@@ -245,14 +261,14 @@ class Experiment(models.Model):
         if experiment.state != Experiment.ENABLED_STATE:
             raise Exception("Invalid experiment state !")
 
-        user = cls.__create_user(experiment_user)
+        paricipant_adaptor = cls.get_participant_adaptor(subject)
 
-        assigned_group = user.get_enrollment(experiment)
+        assigned_group = paricipant_adaptor.get_enrollment(experiment)
 
         if assigned_group == None:
             assigned_group = random.choice((Participant.CONTROL_GROUP,
                                             Participant.TEST_GROUP))
-            user.set_enrollment(experiment, assigned_group)
+            paricipant_adaptor.set_enrollment(experiment, assigned_group)
 
         return queried_group == assigned_group
 

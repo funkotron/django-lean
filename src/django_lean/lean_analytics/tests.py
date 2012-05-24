@@ -173,10 +173,10 @@ else:
 
         @contextmanager
         def web_user(self, user):
-            session = get_session(None)
             request = self.mox.CreateMock(HttpRequest)
             request.user = user
-            request.session = session
+            request.session = get_session(None)
+            request.lean_url_session = get_session(None)
             experiment_user = WebSubject(request.session, request.user)
             experiment_user.get_or_create_anonymous_visitor()
             yield experiment_user
@@ -345,10 +345,10 @@ else:
 
         @contextmanager
         def web_user(self, user):
-            session = get_session(None)
             request = self.mox.CreateMock(HttpRequest)
             request.user = user
-            request.session = session
+            request.session = get_session(None)
+            request.lean_url_session = get_session(None)
             experiment_user = WebSubject(request.session, request.user)
             experiment_user.get_or_create_anonymous_visitor()
             yield experiment_user

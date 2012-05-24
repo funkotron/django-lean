@@ -102,7 +102,7 @@ class ExperimentTagsTest(TestCase):
         parser.parse(('endexperiment', )).MultipleTimes().AndReturn(
             child_node_list)
         parser.delete_first_token().MultipleTimes()
-        user_factory.create_user(context).MultipleTimes().AndReturn(
+        user_factory.create_subject("cookie", context).MultipleTimes().AndReturn(
             TestUser(username=username))
         child_node_list.render(context).MultipleTimes().AndReturn(
             internal_render_result)
@@ -113,7 +113,7 @@ class ExperimentTagsTest(TestCase):
         child_node_list.render(context)
         parser.parse(('endexperiment', ))
         parser.delete_first_token()
-        user_factory.create_user(context)
+        user_factory.create_subject("cookie", context)
 
         
         do_parse = lambda: experiment(parser, token, user_factory=user_factory)
@@ -125,7 +125,7 @@ class ExperimentTagsTest(TestCase):
         if expect_parse_exception:
             self.mox.VerifyAll()
             return None
-        
+
         do_render = lambda: node.render(context)
         if expect_render_exception:
             self.assertRaises(Exception, do_render)
@@ -175,13 +175,13 @@ class ExperimentTagsTest(TestCase):
         token = self.mox.CreateMockAnything()
         token.split_contents().AndReturn(("clientsideexperiment",
                                           experiment_name))
-        user_factory.create_user(context).MultipleTimes().AndReturn(
+        user_factory.create_subject("cookie", context).MultipleTimes().AndReturn(
             TestUser(username=username))
         
         self.mox.ReplayAll()
         
         # HACK this is the only way to make a call optional
-        user_factory.create_user(context)
+        user_factory.create_subject("cookie", context)
         
         node = clientsideexperiment(parser, token, user_factory=user_factory)
         node.render(context)
@@ -194,7 +194,7 @@ class ExperimentTagsTest(TestCase):
             user.save()
             
             # create a context for a single "request"
-            c = Context({"user": user})
+            c = Context({"client_side_experiments": {}, "user": user})
             
             self.doRenderClientSideExperiment(c, "user%i" % i,
                                               self.experiment.name)

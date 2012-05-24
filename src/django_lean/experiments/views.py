@@ -12,7 +12,7 @@ from django.views.decorators.cache import never_cache
 from django_lean.experiments.models import (Experiment, GoalRecord,
                                             DailyEngagementReport)
 from django_lean.experiments.reports import get_conversion_data
-from django_lean.experiments.utils import WebSubject
+from django_lean.experiments.utils import WebSubject, UrlSubject
 
 
 experiment_states= {
@@ -34,8 +34,13 @@ TRANSPARENT_1X1_PNG = \
 
 @never_cache
 def confirm_human(request):
-    experiment_user = WebSubject(request.session, request.user)
-    experiment_user.confirm_human()
+    # FIXME: branch on which experiment/identity we're working with.
+    subjects = [
+        WebSubject(request.session, request.user),
+        UrlSubject(request.lean_url_session)
+    ]
+    for subject in subjects:
+        subject.confirm_human()
     return HttpResponse(status=204)
 
 @never_cache

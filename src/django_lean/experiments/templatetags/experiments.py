@@ -1,30 +1,33 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 
-import logging
-l = logging.getLogger(__name__)
+import logging, urlparse
 
 from django import template
 
+from django_lean.conf import settings
 from django_lean.experiments.models import Experiment
-from django_lean.experiments.utils import WebSubjectFactory
+from django_lean.experiments.utils import SubjectFactory
 
+l = logging.getLogger(__name__)
 
 register = template.Library()
 
 class BaseExperimentNode(template.Node):
-    def __init__(self, user_factory=WebSubjectFactory()):
+    def __init__(self, user_factory=SubjectFactory()):
         self.__user_factory = user_factory
     
-    def create_user(self, context):
-        return self.__user_factory.create_user(context)
+    def create_subject(self, context):
+        identity_source = Experiment.objects.get(name=self.experiment_name
+                ).get_identity_source_display()
+        return self.__user_factory.create_subject(identity_source, context)
 
-    def get_user(self, context):
+    def get_subject(self, context):
         request = context.get('request', None)
         if request is None:
-            return self.create_user(context)
+            return self.create_subject(context)
         if not hasattr(request, 'experiment_user'):
-            request.experiment_user = self.create_user(context)
+            request.experiment_user = self.create_subject(context)
         return request.experiment_user
 
 
@@ -36,7 +39,7 @@ class ExperimentNode(BaseExperimentNode):
         self.group_name = group_name
 
     def render(self, context):
-        user = self.get_user(context)
+        user = self.get_subject(context)
         should_render = False
         
         if self.group_name == "test":
@@ -54,7 +57,7 @@ class ExperimentNode(BaseExperimentNode):
     
 
 @register.tag('experiment')
-def experiment(parser, token, user_factory=WebSubjectFactory()):
+def experiment(parser, token, user_factory=SubjectFactory()):
     """
     Split Testing experiment tag has the following syntax :
     
@@ -92,7 +95,7 @@ class ClientSideExperimentNode(BaseExperimentNode):
             context[self.CONTEXT_KEY]= {}
         
         if self.experiment_name not in context[self.CONTEXT_KEY]:
-            user = self.create_user(context)
+            user = self.create_subject(context)
             group = None
             
             if Experiment.test(self.experiment_name, user):
@@ -108,7 +111,7 @@ class ClientSideExperimentNode(BaseExperimentNode):
     
 
 @register.tag('clientsideexperiment')
-def clientsideexperiment(parser, token, user_factory=WebSubjectFactory()):
+def clientsideexperiment(parser, token, user_factory=SubjectFactory()):
     """
     Used to declare an experiment that affects JavaScript :
     

@@ -1,20 +1,62 @@
 # -*- coding: utf-8 -*-
-import logging
+import logging, urlparse
 l = logging.getLogger(__name__)
+
+from django_lean.conf import settings
+from django.http import QueryDict
+from django.utils.importlib import import_module
 
 from django_lean.experiments.models import (AnonymousVisitor, Experiment,
                                             Participant)
+
+def create_url_session():
+    """
+    Creates a session for an url-backed experiment subject.
+    """
+    engine = import_module(settings.SESSION_ENGINE)
+    session = engine.SessionStore()
+    session.create()
+    return session
+
+def _get_url_bits(url):
+    url_parts = list(urlparse.urlparse(url))
+    qs = url_parts[4]
+    qd = QueryDict(qs, mutable=True)
+    return url_parts, qd
+
+def get_url_session_key(url):
+    """
+    Returns the url-backed experiment subject's session_key, or None.
+    """
+
+    url_parts, qd = _get_url_bits(url)
+    session_key = qd.get(settings.LEAN_QUERYSTRING_NAME, '')
+    if session_key == '':
+        return None
+    return session_key
+
+def get_session(session_key):
+    engine = import_module(settings.SESSION_ENGINE)
+    session = engine.SessionStore(session_key)
+
+def put_url_session_key(url, session_key):
+    """
+    Retuns the given url with the session_key added (overwriting any existing key).
+    """
+    url_parts, qd = _get_url_bits(url)
+    qd[settings.LEAN_QUERYSTRING_NAME] = session_key
+    url_parts[4] = qd.urlencode()
+    return urlparse.urlunparse(url_parts)
 
 class Subject(object):
     """
     A subject is a single identity which is participant in 0 or more experiments.
     """
     def __init__(self, session):
-        """
-        Note that .session may not be a contrib.session - it is just assumed
-          to be a dict-like object which handles persisting itself.
-        """
         self.session = session
+
+    def save(self):
+        self.session.save()
 
     def is_anonymous(self):
         raise NotImplementedError
@@ -48,6 +90,16 @@ class Subject(object):
         return anonymous_visitor
 
     def confirm_human(self):
+        """
+        Until a Subject is confirmed to be human (through some means), 
+          all of their enrollments are temporary.
+        This is intended to ward off counting robots as Subjects, 
+          which would artificially lower conversion rate and increase
+          the number of observations needed to gain confidence.
+
+        Once confirmed by calling this, we migrate temporary enrollments
+          into the more structured Participant table.
+        """
         self.session['verified_human'] = True
         enrollments = self.session.get('temporary_enrollments', {})
         if not enrollments:
@@ -89,29 +141,40 @@ class WebSubject(Subject):
     Wrapper class that implements an 'ExperimentUser' object from a web
     request.
     """
-    def __init__(self, session, user):
-        super(WebSubject, self).__init__(session)
+    def __init__(self, cookie_session, user):
+        self.session = cookie_session
         self.user = user
 
     def is_anonymous(self):
         return self.user.is_anonymous()
 
+class UrlSubject(Subject):
+    def __init__(self, url_session):
+        self.session = url_session
 
-class StaticParticipant(WebSubject):
+    def is_anonymous(self):
+        return True
+
+class StaticSubject(WebSubject):
     def __init__(self):
         from django.contrib.auth.models import AnonymousUser
         self.request = None
         self.user = AnonymousUser()
         self.session = {}
 
-
-class WebSubjectFactory(object):
+class SubjectFactory(object):
     """
     Factory that creates 'ExperimentUser' objects from a web context.
     """
-    def create_user(self, context):
+    def create_subject(self, source, context):
         request = context.get('request', None)
         if request is None:
-            return StaticParticipant()
+            l.warning("no request found in context; using static participant.")
+            return StaticSubject()
+        return getattr(self, 'create_%s_subject' % source)(request)
+
+    def create_cookie_subject(self, request):
         return WebSubject(request.session, request.user)
 
+    def create_url_subject(self, request):
+        return UrlSubject(request.url_session)
