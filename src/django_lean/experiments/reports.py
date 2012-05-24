@@ -22,13 +22,13 @@ def calculate_participant_conversion(participant, goal_type, report_date):
         count = GoalRecord.objects.filter(
             created__gte=participant.enrollment_date,
             created__lt=(report_date + timedelta(days=1)),
-            anonymous_visitor=participant.anonymous_visitor).count()
+            anonymous_visitor=participant.anonymous_visitor_id).count()
     else:
         count = GoalRecord.objects.filter(
             goal_type=goal_type,
             created__gte=participant.enrollment_date,
             created__lt=(report_date + timedelta(days=1)),
-            anonymous_visitor=participant.anonymous_visitor).count()
+            anonymous_visitor=participant.anonymous_visitor_id).count()
     
     return count and 1 or 0
 
