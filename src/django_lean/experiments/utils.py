@@ -8,6 +8,7 @@ from django.utils.importlib import import_module
 
 from django_lean.experiments.models import (AnonymousVisitor, Experiment,
                                             Participant)
+from django_lean.experiments.exceptions import SessionNotFound
 
 def create_url_session():
     """
@@ -17,6 +18,9 @@ def create_url_session():
     session = engine.SessionStore()
     session.create()
     return session
+
+# no actual implementation difference.. yet?
+create_cookie_session = create_url_session
 
 def _get_url_bits(url):
     url_parts = list(urlparse.urlparse(url))
@@ -35,8 +39,14 @@ def get_url_session_key(url):
         return None
     return session_key
 
-def get_session(session_key):
+def get_url_session(session_key):
+    """
+    """
+
     engine = import_module(settings.SESSION_ENGINE)
+    store = engine.SessionStore()
+    if session_key in (None, '') or (not store.exists(session_key)):
+        raise SessionNotFound()
     return engine.SessionStore(session_key)
 
 def put_url_session_key(url, session_key):
@@ -45,6 +55,15 @@ def put_url_session_key(url, session_key):
     """
     url_parts, qd = _get_url_bits(url)
     qd[settings.LEAN_QUERYSTRING_NAME] = session_key
+    url_parts[4] = qd.urlencode()
+    return urlparse.urlunparse(url_parts)
+
+def remove_url_session_key(url):
+    url_parts, qd = _get_url_bits(url)
+    try:
+        del qd[settings.LEAN_QUERYSTRING_NAME]
+    except KeyError:
+        pass
     url_parts[4] = qd.urlencode()
     return urlparse.urlunparse(url_parts)
 

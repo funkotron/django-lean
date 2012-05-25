@@ -8,7 +8,7 @@ from django.http import HttpRequest
 
 from django_lean.experiments.models import (AnonymousVisitor, Experiment,
                                             GoalRecord, GoalType, Participant)
-from django_lean.experiments.tests.utils import get_session, patch, TestCase
+from django_lean.experiments.tests.utils import create_url_session, create_cookie_session, patch, TestCase
 from django_lean.experiments.utils import StaticUser, WebSubject
 from django_lean.lean_analytics import (get_all_analytics,
                                         get_all_analytics_names,
@@ -175,8 +175,8 @@ else:
         def web_user(self, user):
             request = self.mox.CreateMock(HttpRequest)
             request.user = user
-            request.session = get_session(None)
-            request.lean_url_session = get_session(None)
+            request.session = create_cookie_session()
+            request.lean_url_session = create_url_session()
             experiment_user = WebSubject(request.session, request.user)
             experiment_user.get_or_create_anonymous_visitor()
             yield experiment_user
@@ -347,8 +347,8 @@ else:
         def web_user(self, user):
             request = self.mox.CreateMock(HttpRequest)
             request.user = user
-            request.session = get_session(None)
-            request.lean_url_session = get_session(None)
+            request.session = create_cookie_session()
+            request.lean_url_session = create_url_session()
             experiment_user = WebSubject(request.session, request.user)
             experiment_user.get_or_create_anonymous_visitor()
             yield experiment_user

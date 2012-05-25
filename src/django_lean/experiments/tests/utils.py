@@ -14,13 +14,6 @@ from django_lean.experiments.loader import ExperimentLoader
 from django_lean.experiments.models import Participant
 from django_lean.lean_analytics import reset_caches
 
-
-def get_session(session_key):
-    engine = import_module(settings.SESSION_ENGINE)
-    session = engine.SessionStore(session_key)
-    session.load()
-    return session
-
 def create_user_in_group(experiment, i, group, enrollment_date):
     user = User(username="user%s_%s" % (i, group),
                 email="email%s_%s@example.com" % (i, group))

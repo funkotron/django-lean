@@ -1,0 +1,2 @@
+class SessionNotFound(ValueError):
+    pass
