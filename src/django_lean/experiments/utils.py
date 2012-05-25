@@ -37,7 +37,7 @@ def get_url_session_key(url):
 
 def get_session(session_key):
     engine = import_module(settings.SESSION_ENGINE)
-    session = engine.SessionStore(session_key)
+    return engine.SessionStore(session_key)
 
 def put_url_session_key(url, session_key):
     """
