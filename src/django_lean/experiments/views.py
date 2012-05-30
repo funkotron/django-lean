@@ -37,8 +37,9 @@ def confirm_human(request):
     # FIXME: branch on which experiment/identity we're working with.
     subjects = [
         WebSubject(request.session, request.user),
-        UrlSubject(request.lean_url_session)
     ]
+    if request.lean_url_session:
+        raise NotImplementedError("adapt confirm_human to url session.")
     for subject in subjects:
         subject.confirm_human()
     return HttpResponse(status=204)

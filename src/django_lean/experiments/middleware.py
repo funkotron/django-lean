@@ -12,7 +12,10 @@ class SessionMiddleware(object):
     def process_request(self, request):
         engine = import_module(settings.SESSION_ENGINE)
         session_key = request.GET.get(settings.LEAN_QUERYSTRING_NAME, None)
-        request.lean_url_session = engine.SessionStore(session_key)
+        if session_key is not None:
+            request.lean_url_session = engine.SessionStore(session_key)
+        else:
+            request.lean_url_session = None
 
     def process_response(self, request, response):
         """
