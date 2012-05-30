@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import logging, urlparse
+import logging, urlparse, threading
 l = logging.getLogger(__name__)
 
 from django_lean.conf import settings
@@ -67,15 +67,21 @@ def remove_url_session_key(url):
     url_parts[4] = qd.urlencode()
     return urlparse.urlunparse(url_parts)
 
+
 class Subject(object):
     """
     A subject is a single identity which is participant in 0 or more experiments.
     """
-    def __init__(self, session):
-        self.session = session
+    def __init__(self):
+        self.managed = False
 
     def save(self):
-        self.session.save()
+        if self.managed and self.session.modified:
+            self.session.save()
+            # hack because django's session never unsets these under the presumption that 
+            #  because it's tied to request cycle/cookie, it doesn't matter.
+            self.session.accessed = False
+            self.session.modified = False
 
     def is_anonymous(self):
         raise NotImplementedError
@@ -122,7 +128,8 @@ class Subject(object):
         self.session['verified_human'] = True
         enrollments = self.session.get('temporary_enrollments', {})
         if not enrollments:
-            # nothing to do - no need to create an AnonymousVisitor.
+            self.save()
+            # no need to create an AnonymousVisitor.
             return
 
         anonymous_visitor = self.get_or_create_anonymous_visitor()
@@ -138,11 +145,13 @@ class Subject(object):
             except:
                 pass
             del self.session['temporary_enrollments'][experiment_name]
+        self.save()
 
     def store_temporary_enrollment(self, experiment_name, group_id):
         enrollments = self.session.get('temporary_enrollments', {})
         enrollments[experiment_name] = group_id
         self.session['temporary_enrollments'] = enrollments
+        self.save()
 
     def get_added_enrollments(self):
         return self.session.get('temporary_enrollments', None)
@@ -154,12 +163,14 @@ class Subject(object):
         else:
             return added_enrollments.get(experiment_name, None)
 
+
 class WebSubject(Subject):
     """
     Wrapper class that implements an 'ExperimentUser' object from a web
     request.
     """
     def __init__(self, cookie_session, user):
+        super(WebSubject, self).__init__()
         self.session = cookie_session
         self.user = user
 
@@ -168,13 +179,16 @@ class WebSubject(Subject):
 
 class UrlSubject(Subject):
     def __init__(self, url_session):
+        super(UrlSubject, self).__init__()
         self.session = url_session
+        self.managed = True
 
     def is_anonymous(self):
         return True
 
 class StaticSubject(WebSubject):
     def __init__(self):
+        super(StaticSubject, self).__init__()
         from django.contrib.auth.models import AnonymousUser
         self.request = None
         self.user = AnonymousUser()
