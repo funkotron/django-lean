@@ -88,6 +88,7 @@ class Subject(object):
 
     def set_anonymous_id(self, anonymous_id):
         self.session['anonymous_id'] = anonymous_id
+        self.save()
 
     def get_anonymous_id(self):
         return self.session.get('anonymous_id', None)
