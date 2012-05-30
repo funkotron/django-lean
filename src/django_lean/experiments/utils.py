@@ -140,10 +140,9 @@ class Subject(object):
             del self.session['temporary_enrollments'][experiment_name]
 
     def store_temporary_enrollment(self, experiment_name, group_id):
-        enrollments = self.session.get('temporary_enrollments', None)
-        if enrollments is None:
-            self.session['temporary_enrollments'] = {}
-        self.session['temporary_enrollments'][experiment_name] = group_id
+        enrollments = self.session.get('temporary_enrollments', {})
+        enrollments[experiment_name] = group_id
+        self.session['temporary_enrollments'] = enrollments
 
     def get_added_enrollments(self):
         return self.session.get('temporary_enrollments', None)
