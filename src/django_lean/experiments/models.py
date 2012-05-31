@@ -254,8 +254,10 @@ class Experiment(models.Model):
                           experiment_name)
                 return queried_group == Participant.CONTROL_GROUP
         if experiment.state == Experiment.DISABLED_STATE:
+            l.warning("Disabled experiment %s; showing control", experiment_name)
             return queried_group == Participant.CONTROL_GROUP
         elif experiment.state == Experiment.PROMOTED_STATE:
+            l.warning("Promoted experiment %s; showing treatment", experiment_name)
             return queried_group == Participant.TEST_GROUP
 
         if experiment.state != Experiment.ENABLED_STATE:
